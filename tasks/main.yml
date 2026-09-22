@@ -77,11 +77,11 @@
   notify: 'debian_sources update cache'
 
 # Старый однострочный sources.list. Пока он жив, у apt два источника правды.
+# ansible_managed подставляется только модулем template, в copy: content его
+# нет — поэтому заголовок лежит отдельным шаблоном.
 - name: 'debian_sources | Empty legacy sources.list'
-  ansible.builtin.copy:
-    content: |
-      # {{ ansible_managed }}
-      # Источники переехали в {{ debian_sources_dir }}/*.sources (deb822).
+  ansible.builtin.template:
+    src: 'legacy_sources.list.j2'
     dest: "{{ debian_sources_legacy_list }}"
     owner: 'root'
     group: 'root'
