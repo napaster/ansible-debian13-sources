@@ -53,6 +53,13 @@
   when: "item['state'] | default('present') == 'absent'"
   notify: 'debian_sources update cache'
 
+- name: 'debian_sources | Remove named leftovers'
+  ansible.builtin.file:
+    path: "{{ debian_sources_dir }}/{{ item }}"
+    state: 'absent'
+  loop: "{{ debian_sources_absent_files }}"
+  notify: 'debian_sources update cache'
+
 # Приборка каталога. Выключена по умолчанию: сторонние пакеты кладут сюда свои
 # файлы, и снос вслепую оставит хост без обновлений.
 - name: 'debian_sources | List existing .sources'
