@@ -1,0 +1,9 @@
+---
+# Модулем apt не обновляем: ему нужен python3-apt, которого на свежем хосте
+# может не быть, и в check-режиме он отказывается работать.
+- name: 'debian_sources | Update apt cache'
+  ansible.builtin.command:
+    cmd: 'apt-get update -q'
+  changed_when: false
+  listen: 'debian_sources update cache'
+  when: "debian_sources_update_cache | bool"

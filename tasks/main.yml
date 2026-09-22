@@ -1,0 +1,107 @@
+---
+- name: 'debian_sources | Validate'
+  ansible.builtin.assert:
+    that:
+      - "item['name'] is defined and item['name'] | length > 0"
+      - "item['state'] | default('present') in ['present', 'absent']"
+      - >-
+        item['state'] | default('present') == 'absent'
+        or (item['stanzas'] | default([item]) | selectattr('uris', 'defined')
+            | selectattr('suites', 'defined') | list | length
+            == item['stanzas'] | default([item]) | length)
+    quiet: true
+    fail_msg: >-
+      В debian_sources_repositories обязателен name, а у каждой секции — uris
+      и suites. Проблемный элемент: {{ item['name'] | default(item) }}
+  loop: "{{ debian_sources_repositories }}"
+  loop_control:
+    label: "{{ item['name'] | default('без имени') }}"
+
+- name: 'debian_sources | Ensure sources.list.d exists'
+  ansible.builtin.file:
+    path: "{{ debian_sources_dir }}"
+    state: 'directory'
+    owner: 'root'
+    group: 'root'
+    mode: '0755'
+  when: "debian_sources_repositories | length > 0"
+
+# Короткая форма (ключи секции прямо в элементе) и полная (элемент со списком
+# stanzas) сводятся здесь к одному: stanzas = item['stanzas'] или [item].
+- name: 'debian_sources | Deploy .sources'
+  ansible.builtin.template:
+    src: 'sources.j2'
+    dest: "{{ debian_sources_dir }}/{{ item['name'] }}.sources"
+    owner: 'root'
+    group: 'root'
+    mode: '0644'
+  vars:
+    stanzas: "{{ item['stanzas'] | default([item]) }}"
+  loop: "{{ debian_sources_repositories }}"
+  loop_control:
+    label: "{{ item['name'] | default('без имени') }}"
+  when: "item['state'] | default('present') == 'present'"
+  notify: 'debian_sources update cache'
+
+- name: 'debian_sources | Remove .sources marked absent'
+  ansible.builtin.file:
+    path: "{{ debian_sources_dir }}/{{ item['name'] }}.sources"
+    state: 'absent'
+  loop: "{{ debian_sources_repositories }}"
+  loop_control:
+    label: "{{ item['name'] | default('без имени') }}"
+  when: "item['state'] | default('present') == 'absent'"
+  notify: 'debian_sources update cache'
+
+# Приборка каталога. Выключена по умолчанию: сторонние пакеты кладут сюда свои
+# файлы, и снос вслепую оставит хост без обновлений.
+- name: 'debian_sources | List existing .sources'
+  ansible.builtin.find:
+    paths: "{{ debian_sources_dir }}"
+    patterns: '*.sources'
+    file_type: 'file'
+  register: '_debian_sources_present'
+  when: "debian_sources_prune | bool"
+
+- name: 'debian_sources | Prune unmanaged .sources'
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: 'absent'
+  loop: >-
+    {{ (_debian_sources_present.files | default([]) | map(attribute='path') | list)
+       | difference(debian_sources_repositories | map(attribute='name')
+                    | map('regex_replace', '^(.*)$', debian_sources_dir ~ '/\1.sources') | list)
+       | difference(debian_sources_prune_keep
+                    | map('regex_replace', '^(.*)$', debian_sources_dir ~ '/\1.sources') | list) }}
+  when: "debian_sources_prune | bool"
+  notify: 'debian_sources update cache'
+
+# Старый однострочный sources.list. Пока он жив, у apt два источника правды.
+- name: 'debian_sources | Empty legacy sources.list'
+  ansible.builtin.copy:
+    content: |
+      # {{ ansible_managed }}
+      # Источники переехали в {{ debian_sources_dir }}/*.sources (deb822).
+    dest: "{{ debian_sources_legacy_list }}"
+    owner: 'root'
+    group: 'root'
+    mode: '0644'
+  when: "debian_sources_legacy_state == 'empty'"
+  notify: 'debian_sources update cache'
+
+- name: 'debian_sources | Remove legacy sources.list'
+  ansible.builtin.file:
+    path: "{{ debian_sources_legacy_list }}"
+    state: 'absent'
+  when: "debian_sources_legacy_state == 'absent'"
+  notify: 'debian_sources update cache'
+
+# Самой роли python3-apt не нужен, но он нужен модулю apt во всех остальных
+# ролях, и без него --check падает на первой же задаче с пакетами. Ставим
+# командой с creates: идемпотентно и не требует самого модуля apt.
+- name: 'debian_sources | Ensure python3-apt'
+  ansible.builtin.command:
+    cmd: 'apt-get install -y --no-install-recommends python3-apt'
+  args:
+    creates: '/usr/lib/python3/dist-packages/apt/__init__.py'
+  when: "debian_sources_install_python_apt | bool"
