@@ -1,0 +1,33 @@
+# {{ ansible_managed }}
+{% for s in stanzas %}
+{% if not loop.first %}
+
+{% endif %}
+Types: {{ (s['types'] | default(['deb'])) | join(' ') }}
+URIs: {{ (s['uris'] if s['uris'] is sequence and s['uris'] is not string else [s['uris']]) | join(' ') }}
+Suites: {{ (s['suites'] if s['suites'] is sequence and s['suites'] is not string else [s['suites']]) | join(' ') }}
+{% if s['components'] is defined and s['components'] %}
+Components: {{ (s['components'] if s['components'] is sequence and s['components'] is not string else [s['components']]) | join(' ') }}
+{% endif %}
+{% if s['architectures'] is defined and s['architectures'] %}
+Architectures: {{ (s['architectures'] if s['architectures'] is sequence and s['architectures'] is not string else [s['architectures']]) | join(' ') }}
+{% endif %}
+{% if s['languages'] is defined and s['languages'] %}
+Languages: {{ (s['languages'] if s['languages'] is sequence and s['languages'] is not string else [s['languages']]) | join(' ') }}
+{% endif %}
+{% if s['targets'] is defined and s['targets'] %}
+Targets: {{ (s['targets'] if s['targets'] is sequence and s['targets'] is not string else [s['targets']]) | join(' ') }}
+{% endif %}
+{% if s['signed_by'] is defined and s['signed_by'] %}
+Signed-By: {{ s['signed_by'] }}
+{% endif %}
+{% if s['trusted'] is defined %}
+Trusted: {{ 'yes' if (s['trusted'] | bool) else 'no' }}
+{% endif %}
+{% if s['enabled'] is defined and not (s['enabled'] | bool) %}
+Enabled: no
+{% endif %}
+{% for k, v in (s['options'] | default({})).items() %}
+{{ k }}: {{ v if v is string else (v | join(' ') if v is sequence else v) }}
+{% endfor %}
+{% endfor %}

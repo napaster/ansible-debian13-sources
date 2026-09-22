@@ -1,0 +1,63 @@
+---
+# Роль без списка репозиториев ничего не делает: пустой список — пустой прогон.
+debian_sources_repositories: []
+
+debian_sources_dir: '/etc/apt/sources.list.d'
+
+# Каждый элемент списка — ОДИН файл <name>.sources. Внутри файла может быть
+# несколько секций: штатный debian.sources в Debian 13 держит основную ветку
+# и security двумя секциями в одном файле. Поэтому поддерживаются две формы.
+#
+# Короткая (одна секция):
+#   - name: 'proxmox'
+#     uris: ['http://download.proxmox.com/debian/pve']
+#     suites: ['trixie']
+#     components: ['pve-no-subscription']
+#     signed_by: '/usr/share/keyrings/proxmox-archive-keyring.gpg'
+#
+# Полная (несколько секций):
+#   - name: 'debian'
+#     stanzas:
+#       - uris: ['https://deb.debian.org/debian']
+#         suites: ['trixie', 'trixie-updates']
+#         components: ['main', 'non-free-firmware']
+#         signed_by: '/usr/share/keyrings/debian-archive-keyring.gpg'
+#       - uris: ['https://security.debian.org/debian-security']
+#         suites: ['trixie-security']
+#         components: ['main', 'non-free-firmware']
+#         signed_by: '/usr/share/keyrings/debian-archive-keyring.gpg'
+#
+# Ключи секции: types (по умолчанию ['deb']), uris, suites, components,
+# architectures, signed_by, enabled (true/false → Enabled: yes/no),
+# trusted, languages, targets, options — свободный словарь любых других
+# полей deb822, пишется как есть.
+#
+# Ключ элемента state: present (по умолчанию) | absent — убрать файл.
+
+# Удалять из каталога .sources-файлы, которых нет в списке. Выключено:
+# пакеты сторонних вендоров (docker, proxmox, grafana) кладут туда свои
+# файлы, и снос вслепую оставит хост без обновлений.
+debian_sources_prune: false
+# Что не трогать при prune, даже если файла нет в списке.
+debian_sources_prune_keep: []
+
+# Старый /etc/apt/sources.list. Debian 13 ставится уже без него, но апгрейд
+# с 12 файл оставляет, и строки оттуда продолжают работать параллельно с
+# .sources — получается два источника правды.
+#   keep   — не трогать (по умолчанию)
+#   empty  — оставить файл, но выгрести содержимое в комментарий-заголовок
+#   absent — удалить файл
+debian_sources_legacy_list: '/etc/apt/sources.list'
+debian_sources_legacy_state: 'keep'
+
+# apt-get update после изменений. Через command, а не модулем apt: модулю
+# нужен python3-apt, которого на свежем хосте может не быть, и в check-режиме
+# он отказывается работать вовсе.
+debian_sources_update_cache: true
+
+# Поставить python3-apt. Самой роли он не нужен, но он нужен модулю apt в
+# любой другой нашей роли. Без него --check падает на первой же задаче с
+# пакетами, ПРИ ЭТОМ модуль apt (auto_install_module_deps, ansible-core 2.19+)
+# успевает доставить пакет прямо во время проверки. Лучше поставить его
+# явно. Ставится командой с creates, поэтому идемпотентно.
+debian_sources_install_python_apt: true

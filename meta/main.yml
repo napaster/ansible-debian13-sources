@@ -1,0 +1,16 @@
+---
+galaxy_info:
+  author: napaster
+  description: Источники apt в формате deb822 (.sources) для Debian 13 и новее
+  license: MIT
+  min_ansible_version: '2.18'
+  platforms:
+    - name: Debian
+      versions: [trixie, forky]
+  galaxy_tags:
+    - apt
+    - debian
+    - repository
+    - deb822
+
+dependencies: []
