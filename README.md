@@ -27,6 +27,7 @@
 |---|---|---|
 | `debian_sources_repositories` | `[]` | список файлов, см. ниже. Пусто — роль ничего не делает |
 | `debian_sources_dir` | `/etc/apt/sources.list.d` | куда класть |
+| `debian_sources_absent_files` | `[]` | удалить конкретные файлы по имени с расширением: остатки `.list`, `*.dpkg-dist` |
 | `debian_sources_prune` | `false` | удалять `.sources`, которых нет в списке |
 | `debian_sources_prune_keep` | `[]` | имена файлов (без расширения), которые prune не трогает |
 | `debian_sources_legacy_list` | `/etc/apt/sources.list` | путь к старому файлу |
